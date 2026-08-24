@@ -34,7 +34,7 @@ pipeline {
 
                     if (env.BRANCH_NAME == 'main') {
 
-                        echo "Deploying MAIN / PRODUCTION"
+                        echo "Deploying MAIN PRODUCTION SERVER - PORT 3000"
 
                         sh '''
                             ssh -o StrictHostKeyChecking=no ubuntu@localhost "
