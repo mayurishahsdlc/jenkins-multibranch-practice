@@ -6,7 +6,8 @@ const PORT = process.env.PORT || 3000;
 const BRANCH = process.env.APP_BRANCH || "unknown";
 
 app.get("/", (req, res) => {
-    res.send(`Jenkins deployment successful - ${BRANCH}`);
+     res.send(`Jenkins deployment successful - ${BRANCH}`);
+
 });
 
 app.get("/health", (req, res) => {

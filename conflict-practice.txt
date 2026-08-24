@@ -1,1 +1,1 @@
-Deployment environment is MAIN.
+This is the staging version.
