@@ -47,8 +47,8 @@ pipeline {
 
                     } else if (env.BRANCH_NAME == 'staging') {
 
-                        echo "Deploying STAGING"
-
+                        echo "Deploying STAGING SERVER - PORT 3001"     
+                     
                         sh '''
                             ssh -o StrictHostKeyChecking=no ubuntu@localhost "
                                 cd /home/ubuntu/jenkins-multibranch-practice &&
