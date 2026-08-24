@@ -1,1 +1,1 @@
-Deployment environment is STAGING.
+This is the staging version.
