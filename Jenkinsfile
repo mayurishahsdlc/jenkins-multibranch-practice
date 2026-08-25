@@ -1,104 +1,97 @@
 pipeline {
-    agent any
-
-    tools {
-        nodejs "nodejs"
-    }
-
-    stages {
-
-        stage('Checkout') {
+    agent any 
+	  environment {
+	    IMAGE_NAME = "jenkins-multibranch-practise"
+		CONTAINER_NAME = "jenkins-main"
+		APP_PORT = "3000"
+	}
+	 stages {
+	    stage ('Checkout') {
+		 steps {
+		   echo "Building branc:${env.BRANCH_NAME}"
+		   checkout scm
+		}
+	}
+	    stage ('Test') {
+		    steps {
+			  echo "Running tests inside Node Docker container"
+			  sh '''
+			      docker run --rm \
+				  -v "$WORKSPACE:/app" \
+				  -w /app \
+				  node:20-alpine \
+				  sh -c "npm ci && npm test"
+			  '''
+			}
+		}
+		stage('Docker Build') {
+		    steps {
+			    echo "Building application Docker Image"
+			sh '''
+			    docker build \
+				    -t ${IMAGE_NAME}:${BUILD_NUMBER} \
+					-t ${IMAGE_NAME}:latest \
+				    .
+			'''
+           }			
+		}
+        stage('Stop Old Container') {
             steps {
-                echo "Building branch: ${env.BRANCH_NAME}"
-            }
-        }
-
-        stage('Install Dependencies') {
-            steps {
-                sh 'npm install'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                sh '''
-                    node --check app.js
-                    node test.js
-                '''
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                script {
-
-                    if (env.BRANCH_NAME == 'main') {
-
-                        echo "Deploying MAIN PRODUCTION SERVER - PORT 3000"
-
-                        sh '''
-                            ssh -o StrictHostKeyChecking=no ubuntu@localhost "
-                                cd /home/ubuntu/jenkins-multibranch-practice &&
-                                pm2 delete jenkins-main || true &&
-                                APP_BRANCH=main PORT=3000 pm2 start app.js --name jenkins-main &&
-                                pm2 save
-                            "
-                        '''
-
-                    } else if (env.BRANCH_NAME == 'staging') {
-
-                        echo "Deploying STAGING"
-
-                        sh '''
-                            ssh -o StrictHostKeyChecking=no ubuntu@localhost "
-                                cd /home/ubuntu/jenkins-multibranch-practice &&
-                                pm2 delete jenkins-staging || true &&
-                                APP_BRANCH=staging PORT=3001 pm2 start app.js --name jenkins-staging &&
-                                pm2 save
-                            "
-                        '''
-
-                    } else {
-
-                        error("Deployment is not configured for branch: ${env.BRANCH_NAME}")
-
-                    }
-                }
-            }
-        }
-
-        stage('Health Check') {
-            steps {
-                script {
-
-                    if (env.BRANCH_NAME == 'main') {
-
-                        sh '''
-                            sleep 3
-                            curl -f http://127.0.0.1:3000/health
-                        '''
-
-                    } else if (env.BRANCH_NAME == 'staging') {
-
-                        sh '''
-                            sleep 3
-                            curl -f http://127.0.0.1:3001/health
-                        '''
-
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-
-        success {
-            echo "Deployment successful for ${env.BRANCH_NAME}"
-        }
-
-        failure {
-            echo "Deployment failed for ${env.BRANCH_NAME}"
-        }
-    }
+                echo "Stopping old application container"			
+				
+				sh '''
+				    docker rm -f ${CONTAINER_NAME} || true
+				'''
+			}
+		}
+		
+		stage('Deploy') {
+		    steps {
+			   echo "Starting new Docker container"
+			   
+			   sh '''
+			       docker run -d \
+				       --name ${CONTAINER_NAME} \
+					   -p ${APP_PORT}:3000 \
+					   -e PORT=3000 \
+					   -e APP_BRANCH=${BRANCH_NAME} \
+					   ${IMAGE_NAME}:${BUILD_NUMBER}
+				 '''
+			}
+		}
+		stage('Health Check') {
+		   steps {
+		      echo "Checking application health"
+			  
+			  sh '''
+			     sleep 5
+				 
+				 curl -f http://127.0.0.1:${APP_PORT}/health
+			  '''
+			}
+		}
+	}
+	
+	post {
+	    success {
+		    echo "============================="
+			echo "DOCKER DEPLOYMENT SUCCESSFUL"
+			echo "Branch:${BRANCH_NAME}"
+			echo "Container:${CONTAINER_NAME}"
+			echo "============================="
+		}
+		
+		failure {
+		  echo "============================="
+		  echo "DOCKER DEPLOYMENT FAILED"
+		  echo "============================="
+		}
+		always {
+		    sh '''
+			    echo "Running Containers:"
+				docker ps || true
+			'''
+		}
+	}
 }
+EOF
