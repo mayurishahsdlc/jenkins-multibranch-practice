@@ -1,0 +1,10 @@
+cat > .dockerignore <<'EOF'
+.git
+.gitignore
+node_modules
+npm-debug.log
+Jenkinsfile
+test.js
+conflict-demo.txt
+conflict-practice.txt
+EOF
